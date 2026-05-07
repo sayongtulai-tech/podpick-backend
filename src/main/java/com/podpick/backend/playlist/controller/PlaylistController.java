@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -36,8 +38,11 @@ public class PlaylistController {
 
     @Operation(summary = "플레이리스트 목록 조회")
     @GetMapping
-    public List<PlaylistResponse> getPlaylists() {
-        return playlistService.getPlaylists().stream()
+    public List<PlaylistResponse> getPlaylists(
+            @RequestHeader(value = "x-user-email", required = false) String userEmail
+    ) {
+        String ownerEmail = requireOwnerEmail(userEmail);
+        return playlistService.getPlaylists(ownerEmail).stream()
                 .map(PlaylistResponse::from)
                 .toList();
     }
@@ -45,40 +50,69 @@ public class PlaylistController {
     @Operation(summary = "플레이리스트 생성")
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping
-    public PlaylistResponse createPlaylist(@Valid @RequestBody PlaylistCreateRequest request) {
-        Playlist saved = playlistService.createPlaylist(request.title(), request.emotion(), request.musicUrl());
+    public PlaylistResponse createPlaylist(
+            @RequestHeader(value = "x-user-email", required = false) String userEmail,
+            @Valid @RequestBody PlaylistCreateRequest request
+    ) {
+        String ownerEmail = requireOwnerEmail(userEmail);
+        Playlist saved = playlistService.createPlaylist(request.title(), request.emotion(), request.musicUrl(), ownerEmail);
         return PlaylistResponse.from(saved);
     }
 
     @Operation(summary = "플레이리스트 수정")
     @PutMapping("/{id}")
     public PlaylistResponse updatePlaylist(
+            @RequestHeader(value = "x-user-email", required = false) String userEmail,
             @PathVariable Long id,
             @Valid @RequestBody PlaylistUpdateRequest request
     ) {
-        Playlist updated = playlistService.updatePlaylist(id, request.title(), request.emotion(), request.musicUrl());
+        String ownerEmail = requireOwnerEmail(userEmail);
+        Playlist updated = playlistService.updatePlaylist(id, request.title(), request.emotion(), request.musicUrl(), ownerEmail);
         return PlaylistResponse.from(updated);
     }
 
     @Operation(summary = "플레이리스트 삭제")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @DeleteMapping("/{id}")
-    public void deletePlaylist(@PathVariable Long id) {
-        playlistService.deletePlaylist(id);
+    public void deletePlaylist(
+            @RequestHeader(value = "x-user-email", required = false) String userEmail,
+            @PathVariable Long id
+    ) {
+        String ownerEmail = requireOwnerEmail(userEmail);
+        playlistService.deletePlaylist(id, ownerEmail);
     }
 
     @Operation(summary = "플레이리스트 좋아요 증가(PATCH)")
     @PatchMapping("/{id}/like")
-    public PlaylistResponse increaseLikeCountByPatch(@PathVariable Long id) {
-        Playlist updated = playlistService.increaseLikeCount(id);
+    public PlaylistResponse increaseLikeCountByPatch(
+            @RequestHeader(value = "x-user-email", required = false) String userEmail,
+            @PathVariable Long id
+    ) {
+        String ownerEmail = requireOwnerEmail(userEmail);
+        Playlist updated = playlistService.increaseLikeCount(id, ownerEmail);
         return PlaylistResponse.from(updated);
     }
 
     @Operation(summary = "플레이리스트 저장 수 증가(PATCH)")
     @PatchMapping("/{id}/save")
-    public PlaylistResponse increaseSavedCountByPatch(@PathVariable Long id) {
-        Playlist updated = playlistService.increaseSavedCount(id);
+    public PlaylistResponse increaseSavedCountByPatch(
+            @RequestHeader(value = "x-user-email", required = false) String userEmail,
+            @PathVariable Long id
+    ) {
+        String ownerEmail = requireOwnerEmail(userEmail);
+        Playlist updated = playlistService.increaseSavedCount(id, ownerEmail);
         return PlaylistResponse.from(updated);
+    }
+
+    private String requireOwnerEmail(String userEmail) {
+        if (userEmail == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다.");
+        }
+        String normalized = userEmail.trim();
+        if (normalized.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "사용자 식별 정보(email)가 없습니다.");
+        }
+        return normalized;
     }
 }
 

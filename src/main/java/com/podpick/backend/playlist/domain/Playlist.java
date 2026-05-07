@@ -29,16 +29,20 @@ public class Playlist {
     @Column(length = 500)
     private String musicUrl;
 
+    @Column(nullable = false, length = 320)
+    private String ownerEmail;
+
     @Column(nullable = false, columnDefinition = "bigint default 0")
     private long likeCount;
 
     @Column(nullable = false, columnDefinition = "bigint default 0")
     private long savedCount;
 
-    public Playlist(String title, String emotion, String musicUrl) {
+    public Playlist(String title, String emotion, String musicUrl, String ownerEmail) {
         this.title = title;
         this.emotion = emotion;
         this.musicUrl = musicUrl;
+        this.ownerEmail = ownerEmail;
         this.likeCount = 0L;
         this.savedCount = 0L;
     }
